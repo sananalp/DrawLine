@@ -1,0 +1,47 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Webpack build output ---
+# dist/
+build/
+out/
+*.bundle.js
+*.bundle.js.map
+
+# --- Environment variables ---
+.env
+.env.*
+!.env.example
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Editor and IDE files ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Cache folders ---
+.cache/
+.tmp/
+temp/
+webpack-cache/
+webpack-stats.json
+
+# --- Pixi & media cache ---
+*.png.cache
+*.jpg.cache
+*.atlas.cache
+.vercel
