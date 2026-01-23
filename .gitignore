@@ -6,7 +6,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # --- Webpack build output ---
-# dist/
+dist/
 build/
 out/
 *.bundle.js
