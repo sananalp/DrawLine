@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
-import Scene from "./utils/Scene";
 import Game from "./game/Game";
+import Scene from "./utils/Scene";
 
 const app = new Application({
   resizeTo: window,
@@ -14,4 +14,6 @@ document.body.appendChild(app.view);
 const scene = new Scene(app);
 const game = new Game(app, scene);
 
-window.addEventListener('resize', () => game.adaptElements());
+await game.init();
+
+window.addEventListener('resize', () => game.update());
