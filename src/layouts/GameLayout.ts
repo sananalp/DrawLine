@@ -1,12 +1,16 @@
-import { Application, Container, Graphics, LINE_CAP, Sprite, TextStyle, Text } from 'pixi.js';
+import { Application, Container, Graphics, LINE_CAP, Sprite, Text, TextStyle, utils } from 'pixi.js';
 import carAtlas from '../assets/images/car-atlas/carAtlas.json';
 import carImage from '../assets/images/car-atlas/carAtlas.png';
-import Scene from '../utils/Scene';
 import CustomSprite from '../utils/CustomSprite';
+import PathDrawer from '../game/PathDrawer';
+import Scene from '../utils/Scene';
+import GameLogic from '../game/GameLogic';
 
-export default class Game {
+export default class GameLayout {
   private app: Application;
   private scene: Scene;
+  // private pathDrawer: PathDrawer;
+  private event: utils.EventEmitter;
   private parkingLines: Container = new Container();
   private redCar: Sprite = new Sprite();
   private yellowCar: Sprite = new Sprite();
@@ -15,9 +19,10 @@ export default class Game {
   private yellowText: Text = new Text();
   private redText: Text = new Text();
 
-  constructor(app: Application, scene: Scene) {
+  constructor(app: Application, scene: Scene, event: utils.EventEmitter) {
     this.app = app;
     this.scene = scene;
+    this.event = event;
   }
 
   public async init() {
@@ -74,10 +79,18 @@ export default class Game {
     this.greenCar = await CustomSprite.create(carImage, carAtlas, "greenCar.png");
     this.blueCar = await CustomSprite.create(carImage, carAtlas, "blueCar.png");
 
-    this.greenCar.anchor.set(1);
-    this.blueCar.anchor.set(1);
+    this.greenCar.anchor.set(0.5);
+    this.blueCar.anchor.set(0.5);
     this.greenCar.angle = 180;
     this.blueCar.angle = 180;
+
+    const pathDrawer1 = new PathDrawer(this.app, this.scene);
+    const pathDrawer2 = new PathDrawer(this.app, this.scene);
+
+    pathDrawer1.setupInteraction(this.redCar, this.blueCar, 0xd1191f);
+    pathDrawer2.setupInteraction(this.yellowCar, this.greenCar, 0xffc841);
+
+    const gameLogic = new GameLogic(this.app, this.scene, pathDrawer1, pathDrawer2);
 
     this.scene.game.addChild(this.redCar, this.yellowCar, this.greenCar, this.blueCar);
   }
@@ -107,20 +120,22 @@ export default class Game {
     this.scene.setPropertyLandscape(this.yellowText, "position", { tallMobile: { x: 755, y: 50 } });
     this.scene.setPropertyPortrait(this.redText, "position", { tallMobile: { x: 605, y: 700 } });
     this.scene.setPropertyLandscape(this.redText, "position", { tallMobile: { x: 1060, y: 50 } });
+
+    this.event.emit('ENEMY_DIED', this.redText.position);
   }
 
   private alignCars() {
-    // this.yellowCar.position.x = 570;
-    // this.yellowCar.position.y = 570;
-    // this.redCar.position.x = 80;
-    // this.redCar.position.y = 570;
+    this.scene.setPropertyPortrait(this.redCar, "position", { tallMobile: { x: 65, y: 1250 } });
+    this.scene.setPropertyPortrait(this.yellowCar, "position", { tallMobile: { x: 600, y: 1250 } });
+    this.scene.setProperty(this.redCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
+    this.scene.setProperty(this.yellowCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
 
-    this.scene.setPropertyPortrait(this.greenCar, "position", { tallMobile: { x: 65, y: 700 } });
-    this.scene.setPropertyLandscape(this.greenCar, "position", { tallMobile: { x: 415, y: 50 } });
+    this.scene.setPropertyPortrait(this.greenCar, "position", { tallMobile: { x: 165, y: 840 } });
+    this.scene.setPropertyLandscape(this.greenCar, "position", { tallMobile: { x: 515, y: 180 } });
     this.scene.setProperty(this.greenCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
     
-    this.scene.setPropertyPortrait(this.blueCar, "position", { tallMobile: { x: 820, y: 700 } });
-    this.scene.setPropertyLandscape(this.blueCar, "position", { tallMobile: { x: 1320, y: 50 } });
+    this.scene.setPropertyPortrait(this.blueCar, "position", { tallMobile: { x: 915, y: 840 } });
+    this.scene.setPropertyLandscape(this.blueCar, "position", { tallMobile: { x: 1415, y: 180 } });
     this.scene.setProperty(this.blueCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
   }
 }

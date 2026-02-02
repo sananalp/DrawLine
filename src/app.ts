@@ -1,5 +1,6 @@
-import { Application } from 'pixi.js';
-import Game from "./game/Game";
+import { Application, utils } from 'pixi.js';
+import GameLayout from "./layouts/GameLayout";
+import UILayout from './layouts/UILayout';
 import Scene from "./utils/Scene";
 
 const app = new Application({
@@ -12,8 +13,18 @@ const app = new Application({
 document.body.appendChild(app.view);
 
 const scene = new Scene(app);
-const game = new Game(app, scene);
+const event = new utils.EventEmitter();
+const gameLayout = new GameLayout(app, scene, event);
+const uiLayout = new UILayout(app, scene);
 
-await game.init();
+event.on('ENEMY_DIED', (pos) => {
+  uiLayout.handMove(pos.x, pos.y);
+});
 
-window.addEventListener('resize', () => game.update());
+await uiLayout.init();
+await gameLayout.init();
+
+window.addEventListener('resize', () => {
+  gameLayout.update();
+  uiLayout.update();
+});
