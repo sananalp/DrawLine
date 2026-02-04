@@ -5,11 +5,11 @@ import Scene from "./utils/Scene";
 
 const app = new Application({
   resizeTo: window,
-  backgroundAlpha: 1,
-  antialias: true,
   backgroundColor: 0x545454,
+  antialias: true,
 });
 
+app.view.style.position = "absolute";
 document.body.appendChild(app.view);
 
 const scene = new Scene(app);
@@ -17,14 +17,27 @@ const event = new utils.EventEmitter();
 const gameLayout = new GameLayout(app, scene, event);
 const uiLayout = new UILayout(app, scene);
 
-event.on('ENEMY_DIED', (pos) => {
+event.on('onRedTextAligned', (pos) => {
   uiLayout.handMove(pos.x, pos.y);
 });
+event.on('onStartPlaying', () => {
+  uiLayout.handMoveStop();
+});
+event.on('onCarCrash', () => {
+  uiLayout.failPopup();
+  gameLayout.alignCars();
+});
+event.on('onAttemptEnd', () => {
+  gameLayout.alignCars();
+  uiLayout.showEndScreen();
+});
 
+scene.resize();
 await uiLayout.init();
 await gameLayout.init();
 
 window.addEventListener('resize', () => {
-  gameLayout.update();
+  scene.resize();
   uiLayout.update();
+  gameLayout.update();
 });

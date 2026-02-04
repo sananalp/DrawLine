@@ -1,48 +1,44 @@
-import { Sprite } from 'pixi.js';
-import { Application, Graphics, InteractionEvent, LINE_CAP, Point } from 'pixi.js';
+import { Application, Graphics, IHitArea, InteractionEvent, LINE_CAP, Point, Rectangle, Sprite, utils } from 'pixi.js';
 import Scene from '../utils/Scene';
-import { Easing, Tween } from '@tweenjs/tween.js';
 
 export default class PathDrawer {
   private app: Application;
   private scene: Scene;
-  private graphics: Graphics;
+  private event: utils.EventEmitter;
+  private lineGraphics: Graphics;
   private drawing: boolean = false;
   private isConnected: boolean = false;
   private firstPoint: Point | null = null;
   private readonly smoothFactor: number = 0.1;
   private path: Point[] = [];
   private road: Point[] = [];
-  private speed: number = 3;
+  private speed: number = 0;
   private currentIndex: number = 0;
   private actionSprite: Sprite = new Sprite();
   private targetSprite: Sprite = new Sprite();
   private lineColor: number = 0x000000;
-  
-  public get Road() : Point[] {
+
+  public get Road(): Point[] {
     return this.road;
   }
-  public get IsConnected() : boolean {
+  public get IsConnected(): boolean {
     return this.isConnected;
   }
-  public get ActionSprite() : Sprite {
+  public get ActionSprite(): Sprite {
     return this.actionSprite;
   }
-  
-  
 
-  constructor(app: Application, scene: Scene) {
+  constructor(app: Application, scene: Scene, event: utils.EventEmitter) {
     this.app = app;
     this.scene = scene;
+    this.event = event;
 
-    this.graphics = new Graphics();
-    this.scene.game.addChild(this.graphics);
+    this.lineGraphics = new Graphics();
+    this.scene.game.addChild(this.lineGraphics);
   }
 
   public setupInteraction(actionSprite: Sprite, targetSprite: Sprite, lineColor: number): void {
     this.scene.game.interactive = true;
-
-    this.scene.game.hitArea = this.app.screen;
 
     this.actionSprite = actionSprite
     this.targetSprite = targetSprite;
@@ -56,24 +52,22 @@ export default class PathDrawer {
     this.targetSprite.on('pointerup', this.onPointerUp, this);
     this.actionSprite.on('pointerup', this.onPointerUpOutside, this);
     this.actionSprite.on('pointerupoutside', this.onPointerUpOutside, this);
+    this.scene.game.on('pointerupoutside', this.onPointerUpOutside, this);
   }
 
-  public setPath(path: Point[]): void {
-    this.road = path;
-    this.currentIndex = 0;
+  public setHitArea(hitArea: Rectangle) {
+    this.scene.game.hitArea = hitArea;
+    this.lineGraphics.hitArea = hitArea;
+  }
 
-    if (path.length > 0) {
-      this.actionSprite.position.copyFrom(path[0]);
-    }
+  public setPosition(): void {
+    this.actionSprite.position.copyFrom(this.road[0]);
+    this.actionSprite.anchor.set(0.5);
   }
 
   public prepareSpeed(arriveTimeSec: number): void {
     const totalLength = this.getPathLength(this.road);
-
-    // пикселей в тик (delta = 1)
-    this.speed = totalLength / (arriveTimeSec * 60);
-
-    this.currentIndex = 0;
+    this.speed = totalLength / (arriveTimeSec * this.app.ticker.FPS);
   }
 
   private getPathLength(path: Point[]): number {
@@ -95,16 +89,11 @@ export default class PathDrawer {
     }
 
     const target = this.road[this.currentIndex];
-
     const dx = target.x - this.actionSprite.x;
     const dy = target.y - this.actionSprite.y;
-
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    const step = this.speed * delta;
-
-    // если за кадр доходим до точки — встаём точно в неё
-    if (distance <= step) {
+    if (distance <= this.speed * delta) {
       this.actionSprite.position.copyFrom(target);
       this.currentIndex++;
       return;
@@ -113,16 +102,25 @@ export default class PathDrawer {
     const nx = dx / distance;
     const ny = dy / distance;
 
-    this.actionSprite.anchor.set(0.5);
-    this.actionSprite.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+    const targetRotation = Math.atan2(dy, dx) + Math.PI / 2;
 
-    this.actionSprite.x += nx * step;
-    this.actionSprite.y += ny * step;
+    let rotationDiff = targetRotation - this.actionSprite.rotation;
+
+    while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
+    while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
+
+    const lerpSpeed = 0.15;
+    this.actionSprite.rotation += rotationDiff * lerpSpeed * delta;
+
+    this.actionSprite.x += nx * this.speed * delta;
+    this.actionSprite.y += ny * this.speed * delta;
   }
 
   private onPointerDown(e: InteractionEvent): void {
     this.drawing = true;
-    this.firstPoint = e.data.global.clone();
+    this.firstPoint = e.data.getLocalPosition(this.scene.game).clone();
+    this.event.off('onRedTextAligned');
+    this.event.emit('onStartPlaying');
 
     this.path = [];
     this.path.push(this.firstPoint.clone());
@@ -131,14 +129,30 @@ export default class PathDrawer {
   private onPointerMove(e: InteractionEvent): void {
     if (!this.drawing || !this.firstPoint) return;
 
-    const currentPoint: Point = e.data.global;
+    const currentPoint: Point = e.data.getLocalPosition(this.scene.game).clone();
+    const hitObject = this.app.renderer.plugins.interaction.hitTest(currentPoint) as Sprite;
+    const hitObjName = hitObject?.texture?.textureCacheIds[0];
+
+    if (this.lineGraphics.hitArea && this.lineGraphics.hitArea.contains(currentPoint.x, currentPoint.y)) {
+      this.drawing = true;
+    } else {
+      this.drawing = false;
+      return;
+    }
+
+    if (this.actionSprite.texture?.textureCacheIds[0] === hitObjName || !hitObjName) {
+      this.drawing = true;
+    }
+    else{
+      this.drawing = false;
+    }
 
     const smoothedX = this.firstPoint.x + (currentPoint.x - this.firstPoint.x) * this.smoothFactor;
     const smoothedY = this.firstPoint.y + (currentPoint.y - this.firstPoint.y) * this.smoothFactor;
 
-    this.graphics.lineStyle({ width: 30, color: this.lineColor, alpha: 1, cap: LINE_CAP.ROUND });
-    this.graphics.moveTo(this.firstPoint.x, this.firstPoint.y);
-    this.graphics.lineTo(smoothedX, smoothedY);
+    this.lineGraphics.lineStyle({ width: 30, color: this.lineColor, alpha: 1, cap: LINE_CAP.ROUND });
+    this.lineGraphics.moveTo(this.firstPoint.x, this.firstPoint.y);
+    this.lineGraphics.lineTo(smoothedX, smoothedY);
 
     this.firstPoint.set(smoothedX, smoothedY);
 
@@ -147,12 +161,14 @@ export default class PathDrawer {
   }
 
   private onPointerUp(): void {
-    if(this.path.length < 1) return;
+    if (this.path.length < 1) return;
 
     this.drawing = false;
     this.firstPoint = null;
+    this.actionSprite.interactive = false;
     this.isConnected = true;
-    this.setPath(this.path);
+    this.road = this.path;
+    this.currentIndex = 0;
     this.path.push(this.targetSprite.position.clone());
   }
 
@@ -160,12 +176,27 @@ export default class PathDrawer {
     this.drawing = false;
     this.firstPoint = null;
     this.path = [];
-    
-    if(!this.isConnected) this.clear();
+
+    if (!this.isConnected) this.clear();
   }
 
   public clear(): void {
-    this.graphics.clear();
+    this.lineGraphics.clear();
+  }
+
+  public reset() {
+    this.clear();
+    this.path = [];
+    this.road= [];
+    this.drawing = false;
+    this.isConnected = false;
+    this.firstPoint = null;
+    this.speed = 0;
+    this.currentIndex = 0;
+    this.actionSprite.interactive = true;
+
+    this.actionSprite.anchor.set(0);
+    this.actionSprite.rotation = 0;
   }
 
   public destroy(): void {
@@ -175,6 +206,6 @@ export default class PathDrawer {
     this.actionSprite.off('pointerup', this.onPointerUpOutside, this);
     this.actionSprite.off('pointerupoutside', this.onPointerUpOutside, this);
 
-    this.graphics.destroy();
+    this.lineGraphics.destroy();
   }
 }

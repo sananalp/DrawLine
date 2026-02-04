@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, LINE_CAP, Sprite, Text, TextStyle, utils } from 'pixi.js';
+import { Application, Container, Graphics, LINE_CAP, Rectangle, Sprite, Text, TextStyle, utils } from 'pixi.js';
 import carAtlas from '../assets/images/car-atlas/carAtlas.json';
 import carImage from '../assets/images/car-atlas/carAtlas.png';
 import CustomSprite from '../utils/CustomSprite';
@@ -9,7 +9,6 @@ import GameLogic from '../game/GameLogic';
 export default class GameLayout {
   private app: Application;
   private scene: Scene;
-  // private pathDrawer: PathDrawer;
   private event: utils.EventEmitter;
   private parkingLines: Container = new Container();
   private redCar: Sprite = new Sprite();
@@ -18,6 +17,11 @@ export default class GameLayout {
   private blueCar: Sprite = new Sprite();
   private yellowText: Text = new Text();
   private redText: Text = new Text();
+  private redParkingSlot: Sprite = new Sprite();
+  private yellowParkingSlot: Sprite = new Sprite();
+  private hitArea: Rectangle = new Rectangle(0, 0, 0, 0);
+  private debugGraphics = new Graphics();
+  private gameLogic: GameLogic | null = null;
 
   constructor(app: Application, scene: Scene, event: utils.EventEmitter) {
     this.app = app;
@@ -84,15 +88,31 @@ export default class GameLayout {
     this.greenCar.angle = 180;
     this.blueCar.angle = 180;
 
-    const pathDrawer1 = new PathDrawer(this.app, this.scene);
-    const pathDrawer2 = new PathDrawer(this.app, this.scene);
+    const red = new Graphics()
+      .beginFill(0xFF0000)
+      .drawRect(0, 0, 30, 100)
+      .endFill();
+    const yellow = new Graphics()
+      .beginFill(0xFFFF00)
+      .drawRect(0, 0, 30, 100)
+      .endFill();
 
-    pathDrawer1.setupInteraction(this.redCar, this.blueCar, 0xd1191f);
-    pathDrawer2.setupInteraction(this.yellowCar, this.greenCar, 0xffc841);
+    this.redParkingSlot = new Sprite(this.app.renderer.generateTexture(red));
+    this.yellowParkingSlot = new Sprite(this.app.renderer.generateTexture(yellow));
+    this.redParkingSlot.anchor.set(0.5);
+    this.yellowParkingSlot.anchor.set(0.5);
+    this.redParkingSlot.alpha = 0.5;
+    this.yellowParkingSlot.alpha = 0.5;
 
-    const gameLogic = new GameLogic(this.app, this.scene, pathDrawer1, pathDrawer2);
+    const pathDrawer1 = new PathDrawer(this.app, this.scene, this.event);
+    const pathDrawer2 = new PathDrawer(this.app, this.scene, this.event);
 
-    this.scene.game.addChild(this.redCar, this.yellowCar, this.greenCar, this.blueCar);
+    pathDrawer1.setupInteraction(this.redCar, this.redParkingSlot, 0xd1191f);
+    pathDrawer2.setupInteraction(this.yellowCar, this.yellowParkingSlot, 0xffc841);
+
+    this.gameLogic = new GameLogic(this.app, pathDrawer1, pathDrawer2, this.event);
+
+    this.scene.game.addChild(this.redCar, this.yellowCar, this.greenCar, this.blueCar, this.redParkingSlot, this.yellowParkingSlot);
   }
 
   private alignParkingLines() {
@@ -108,7 +128,7 @@ export default class GameLayout {
       this.scene.setPropertyLandscape(lineContainer.children[1], "position", { tallMobile: { x: 40, y: 500 } });
     });
 
-    this.scene.setPropertyPortrait(this.parkingLines, "position", { tallMobile: { x: -25, y: 0 } });
+    this.scene.setPropertyPortrait(this.parkingLines, "position", { tallMobile: { x: -25, y: -150 } });
     this.scene.setPropertyLandscape(this.parkingLines, "position", { tallMobile: { x: 300, y: -150 } });
   }
 
@@ -116,26 +136,55 @@ export default class GameLayout {
     this.yellowText.style.fill = 0xffc841;
     this.redText.style.fill = 0xd1191f;
 
-    this.scene.setPropertyPortrait(this.yellowText, "position", { tallMobile: { x: 350, y: 700 } });
+    this.scene.setPropertyPortrait(this.yellowText, "position", { tallMobile: { x: 350, y: 550 } });
     this.scene.setPropertyLandscape(this.yellowText, "position", { tallMobile: { x: 755, y: 50 } });
-    this.scene.setPropertyPortrait(this.redText, "position", { tallMobile: { x: 605, y: 700 } });
+    this.scene.setPropertyPortrait(this.redText, "position", { tallMobile: { x: 605, y: 550 } });
     this.scene.setPropertyLandscape(this.redText, "position", { tallMobile: { x: 1060, y: 50 } });
 
-    this.event.emit('ENEMY_DIED', this.redText.position);
+    this.event.emit('onRedTextAligned', this.redText.position);
   }
 
-  private alignCars() {
-    this.scene.setPropertyPortrait(this.redCar, "position", { tallMobile: { x: 65, y: 1250 } });
-    this.scene.setPropertyPortrait(this.yellowCar, "position", { tallMobile: { x: 600, y: 1250 } });
-    this.scene.setProperty(this.redCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
-    this.scene.setProperty(this.yellowCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
+  public alignCars() {
+    this.scene.setPropertyPortrait(this.redCar, "position", { tallMobile: { x: 250, y: 1250 } });
+    this.scene.setPropertyLandscape(this.redCar, "position", { tallMobile: { x: 500, y: 750 } });
+    this.scene.setPropertyPortrait(this.yellowCar, "position", { tallMobile: { x: 650, y: 1250 } });
+    this.scene.setPropertyLandscape(this.yellowCar, "position", { tallMobile: { x: 1250, y: 750 } });
+    this.scene.setProperty(this.redCar, "scale", { tallMobile: { x: 0.8, y: 0.8 } });
+    this.scene.setProperty(this.yellowCar, "scale", { tallMobile: { x: 0.8, y: 0.8 } });
 
-    this.scene.setPropertyPortrait(this.greenCar, "position", { tallMobile: { x: 165, y: 840 } });
-    this.scene.setPropertyLandscape(this.greenCar, "position", { tallMobile: { x: 515, y: 180 } });
-    this.scene.setProperty(this.greenCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
+    this.debugGraphics.clear();
+    this.scene.setPropertyPortrait(this.hitArea, "x", { tallMobile: 0 });
+    this.scene.setPropertyPortrait(this.hitArea, "y", { tallMobile: this.scene.DESIGN_HEIGHT - 1345 });
+    this.scene.setPropertyPortrait(this.hitArea, "width", { tallMobile: this.scene.DESIGN_WIDTH });
+    this.scene.setPropertyPortrait(this.hitArea, "height", { tallMobile: this.scene.DESIGN_HEIGHT - 975 });
     
-    this.scene.setPropertyPortrait(this.blueCar, "position", { tallMobile: { x: 915, y: 840 } });
+    this.scene.setPropertyLandscape(this.hitArea, "x", { tallMobile: 0 });
+    this.scene.setPropertyLandscape(this.hitArea, "y", { tallMobile: 60 });
+    this.scene.setPropertyLandscape(this.hitArea, "width", { tallMobile: this.scene.DESIGN_WIDTH});
+    this.scene.setPropertyLandscape(this.hitArea, "height", { tallMobile: this.scene.DESIGN_HEIGHT - 115 });
+
+    this.gameLogic?.setHitArea(this.hitArea);
+
+    this.debugGraphics.lineStyle(5, 0xFF0000, 1);
+    this.debugGraphics.drawShape(this.hitArea);
+    this.scene.game.addChild(this.debugGraphics);
+
+    this.scene.setPropertyPortrait(this.greenCar, "position", { tallMobile: { x: 165, y: 700 } });
+    this.scene.setPropertyLandscape(this.greenCar, "position", { tallMobile: { x: 515, y: 180 } });
+    this.scene.setProperty(this.greenCar, "scale", { tallMobile: { x: 0.8, y: 0.8 } });
+
+    this.scene.setPropertyPortrait(this.blueCar, "position", { tallMobile: { x: 915, y: 700 } });
     this.scene.setPropertyLandscape(this.blueCar, "position", { tallMobile: { x: 1415, y: 180 } });
-    this.scene.setProperty(this.blueCar, "scale", { tallMobile: { x: 0.9, y: 0.9 } });
+    this.scene.setProperty(this.blueCar, "scale", { tallMobile: { x: 0.8, y: 0.8 } });
+
+    this.scene.setPropertyPortrait(this.redParkingSlot, "position", { tallMobile: { x: 665, y: 700 } });
+    this.scene.setPropertyLandscape(this.redParkingSlot, "position", { tallMobile: { x: 1115, y: 180 } });
+    this.scene.setPropertyPortrait(this.redParkingSlot, "scale", { tallMobile: { x: 8, y: 4 } });
+    this.scene.setPropertyLandscape(this.redParkingSlot, "scale", { tallMobile: { x: 9, y: 4 } });
+    
+    this.scene.setPropertyPortrait(this.yellowParkingSlot, "position", { tallMobile: { x: 412, y: 700 } });
+    this.scene.setPropertyLandscape(this.yellowParkingSlot, "position", { tallMobile: { x: 815, y: 180 } });
+    this.scene.setPropertyPortrait(this.yellowParkingSlot, "scale", { tallMobile: { x: 8, y: 4 } });
+    this.scene.setPropertyLandscape(this.yellowParkingSlot, "scale", { tallMobile: { x: 9, y: 4 } });
   }
 }

@@ -12,6 +12,14 @@ export default class Scene {
   DESIGN_HEIGHT: number = 0;
   debugText?: Text;
 
+  SCREEN_TYPES = {
+    tallMobile: { width: 1080, height: 1920 },
+    classicMobile: { width: 720, height: 1280 },
+    foldInner: { width: 1812, height: 2176 },
+    tablet: { width: 1536, height: 2048 },
+    ultraWideMobile: { width: 1280, height: 720 },
+  };
+
   constructor(app: Application) {
     this.app = app;
     this.screenType = this.detectScreenType();
@@ -24,7 +32,10 @@ export default class Scene {
 
     if (process.env.NODE_ENV === "development") {
       this.createDebugText();
-      window.addEventListener('resize', () => this.updateDebugText());
+
+      window.addEventListener('resize', () => {
+        this.updateDebugText();
+      });
     }
   }
 
@@ -45,6 +56,50 @@ export default class Scene {
     if (ratio <= 0.78) return "foldInner";
     if (ratio <= 0.95) return "tablet";
     return "ultraWideMobile";
+  }
+
+  setDesignResolution(designWidth: number, designHeight: number): void {
+    const orientation = this.getOrientation();
+
+    if (orientation === "portrait") {
+      this.DESIGN_WIDTH = designWidth;
+      this.DESIGN_HEIGHT = designHeight;
+    } else {
+      this.DESIGN_WIDTH = designHeight;
+      this.DESIGN_HEIGHT = designWidth;
+    }
+  }
+
+  public resize(): void {
+    this.screenType = this.detectScreenType();
+
+    const design = this.SCREEN_TYPES[this.screenType];
+
+    if (!design) {
+      console.warn("Unknown screenType:", this.screenType);
+      return;
+    }
+
+    this.setDesignResolution(design.width, design.height);
+
+    const realW = window.innerWidth;
+    const realH = window.innerHeight;
+
+    const scale = Math.min(
+      realW / this.DESIGN_WIDTH,
+      realH / this.DESIGN_HEIGHT
+    );
+
+    this.game.scale.set(scale);
+    this.ui.scale.set(scale);
+
+    const offsetX = (realW - this.DESIGN_WIDTH * scale) / 2;
+    const offsetY = (realH - this.DESIGN_HEIGHT * scale) / 2;
+
+    this.game.x = offsetX;
+    this.game.y = offsetY;
+    this.ui.x = offsetX;
+    this.ui.y = offsetY;
   }
 
   setProperty(element: any, path: string, values: Record<string, any>): void {

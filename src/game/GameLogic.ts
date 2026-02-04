@@ -1,16 +1,16 @@
-import { Application, Graphics, Point, Sprite } from "pixi.js";
+import { Application, Point, Rectangle, Sprite, utils } from "pixi.js";
 import PathDrawer from "./PathDrawer";
-import Scene from "../utils/Scene";
 
 export default class GameLogic {
   private app: Application;
-  // private scene: Scene;
+  private event: utils.EventEmitter;
   private pathDrawer1: PathDrawer;
   private pathDrawer2: PathDrawer;
+  private attemptCount: number = 0;
 
-  constructor(app: Application, scene: Scene, a: PathDrawer, b: PathDrawer) {
+  constructor(app: Application, a: PathDrawer, b: PathDrawer, event: utils.EventEmitter) {
     this.app = app;
-    // this.scene = scene;
+    this.event = event;
     this.pathDrawer1 = a;
     this.pathDrawer2 = b;
 
@@ -21,7 +21,10 @@ export default class GameLogic {
   private checkConnectedLines() {
     if (this.cutPathsAtFirstIntersection(this.pathDrawer1.Road, this.pathDrawer2.Road)) {
 
-      const ARRIVE_TIME = 3; // секунды
+      const ARRIVE_TIME = 2;
+
+      this.pathDrawer1.setPosition();
+      this.pathDrawer2.setPosition();
 
       this.pathDrawer1.prepareSpeed(ARRIVE_TIME);
       this.pathDrawer2.prepareSpeed(ARRIVE_TIME);
@@ -48,7 +51,20 @@ export default class GameLogic {
 
     if (this.isTouching(this.pathDrawer1.ActionSprite, this.pathDrawer2.ActionSprite)) {
       this.app.ticker.remove(this.moveSpriteUpdate, this);
+      this.pathDrawer1.reset();
+      this.pathDrawer2.reset();
+      this.attemptCount++;
+      if(this.attemptCount === 3)
+        this.event.emit('onAttemptEnd');
+      else
+        this.event.emit('onCarCrash');
+        
     }
+  }
+
+  public setHitArea(hitArea: Rectangle) {
+    this.pathDrawer1.setHitArea(hitArea);
+    this.pathDrawer2.setHitArea(hitArea);
   }
 
   private getSegmentIntersection(p1: Point, p2: Point, p3: Point, p4: Point): Point | null {
@@ -61,7 +77,7 @@ export default class GameLogic {
       (x1 - x2) * (y3 - y4) -
       (y1 - y2) * (x3 - x4);
 
-    if (denom === 0) return null; // параллельны или совпадают
+    if (denom === 0) return null;
 
     const px =
       ((x1 * y2 - y1 * x2) * (x3 - x4) -
@@ -71,7 +87,6 @@ export default class GameLogic {
       ((x1 * y2 - y1 * x2) * (y3 - y4) -
         (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
 
-    // Проверка, что точка внутри ОБОИХ отрезков
     if (
       px < Math.min(x1, x2) || px > Math.max(x1, x2) ||
       px < Math.min(x3, x4) || px > Math.max(x3, x4) ||
@@ -96,19 +111,17 @@ export default class GameLogic {
         const intersection = this.getSegmentIntersection(a1, a2, b1, b2);
 
         if (intersection) {
-          // ✂️ Обрезаем pathA
           pathA.splice(i + 1);
           pathA.push(intersection);
 
-          // ✂️ Обрезаем pathB
           pathB.splice(j + 1);
           pathB.push(intersection.clone());
 
-          return true; // нашли первое пересечение — выходим
+          return true;
         }
       }
     }
 
-    return false; // пересечений нет
+    return false;
   }
 }
