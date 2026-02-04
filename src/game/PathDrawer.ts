@@ -9,7 +9,7 @@ export default class PathDrawer {
   private drawing: boolean = false;
   private isConnected: boolean = false;
   private firstPoint: Point | null = null;
-  private readonly smoothFactor: number = 0.1;
+  private readonly smoothFactor: number = 0.5;
   private path: Point[] = [];
   private road: Point[] = [];
   private speed: number = 0;
