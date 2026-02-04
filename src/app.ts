@@ -2,6 +2,7 @@ import { Application, utils } from 'pixi.js';
 import GameLayout from "./layouts/GameLayout";
 import UILayout from './layouts/UILayout';
 import Scene from "./utils/Scene";
+import IdleManager from './utils/IdleManager';
 
 const app = new Application({
   resizeTo: window,
@@ -17,11 +18,19 @@ const event = new utils.EventEmitter();
 const gameLayout = new GameLayout(app, scene, event);
 const uiLayout = new UILayout(app, scene);
 
+const idle = new IdleManager(3, () => {
+  uiLayout.handMoveStop();
+  uiLayout.showEndScreen();
+});
+
+idle.start(scene.game);
+
 event.on('onRedTextAligned', (pos) => {
   uiLayout.handMove(pos.x, pos.y);
 });
 event.on('onStartPlaying', () => {
   uiLayout.handMoveStop();
+  idle.pause();
 });
 event.on('onCarCrash', () => {
   uiLayout.failPopup();
@@ -30,6 +39,7 @@ event.on('onCarCrash', () => {
 event.on('onAttemptEnd', () => {
   gameLayout.alignCars();
   uiLayout.showEndScreen();
+  idle.pause();
 });
 
 scene.resize();

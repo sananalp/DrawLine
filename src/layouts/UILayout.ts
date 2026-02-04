@@ -68,10 +68,15 @@ export default class UILayout {
     this.ctaButton.anchor.set(0.5);
     this.logoSprite.anchor.set(0.5);
 
+    this.ctaButton.on('pointerup', () => { window.open('https://roasup.com/', '_blank'); });
+
     this.scene.ui.addChild(this.failSprite, this.tutorHand, this.darkLayer, this.ctaButton, this.logoSprite);
   }
 
   public showEndScreen() {
+    this.ctaButton.interactive = true;
+    this.scene.ui.interactive = true;
+
     const appearTween = new Tween(this.darkLayer)
       .to({ alpha: 0.55 }, 500)
       .delay(500)
@@ -152,6 +157,8 @@ export default class UILayout {
     if (this.fadeTween) {
       this.fadeTween.stop();
     }
+
+    if (this.ctaButton.interactive === true) return;
 
     const startX = this.tutorHand.x;
     const startY = this.tutorHand.y;

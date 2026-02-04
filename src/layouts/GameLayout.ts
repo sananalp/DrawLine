@@ -101,8 +101,8 @@ export default class GameLayout {
     this.yellowParkingSlot = new Sprite(this.app.renderer.generateTexture(yellow));
     this.redParkingSlot.anchor.set(0.5);
     this.yellowParkingSlot.anchor.set(0.5);
-    this.redParkingSlot.alpha = 0.5;
-    this.yellowParkingSlot.alpha = 0.5;
+    this.redParkingSlot.alpha = 0;
+    this.yellowParkingSlot.alpha = 0;
 
     const pathDrawer1 = new PathDrawer(this.app, this.scene, this.event);
     const pathDrawer2 = new PathDrawer(this.app, this.scene, this.event);
@@ -165,7 +165,7 @@ export default class GameLayout {
 
     this.gameLogic?.setHitArea(this.hitArea);
 
-    this.debugGraphics.lineStyle(5, 0xFF0000, 1);
+    this.debugGraphics.lineStyle(5, 0xFF0000, 0);
     this.debugGraphics.drawShape(this.hitArea);
     this.scene.game.addChild(this.debugGraphics);
 
