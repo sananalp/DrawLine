@@ -18,7 +18,7 @@ const event = new utils.EventEmitter();
 const gameLayout = new GameLayout(app, scene, event);
 const uiLayout = new UILayout(app, scene);
 
-const idle = new IdleManager(3, () => {
+const idle = new IdleManager(20, () => {
   uiLayout.handMoveStop();
   uiLayout.showEndScreen();
 });
